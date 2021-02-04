@@ -5,18 +5,14 @@ import random
 import time
 from itertools import islice
 
+import elasticsearch
+import elasticsearch.helpers
 import luigi
+from elasticsearch.exceptions import TransportError
 
 from edx.analytics.tasks.common.mapreduce import MapReduceJobTask
 from edx.analytics.tasks.util.elasticsearch_target import ElasticsearchTarget
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
-
-try:
-    import elasticsearch
-    import elasticsearch.helpers
-    from elasticsearch.exceptions import TransportError
-except ImportError:
-    elasticsearch = None
 
 try:
     from edx.analytics.tasks.util.aws_elasticsearch_connection import AwsHttpConnection
@@ -128,7 +124,7 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
 
         # Find all indexes that are referred to by this alias (currently). These will be deleted after a successful
         # load of the new index.
-        aliases = elasticsearch_client.indices.get_aliases(name=self.alias)
+        aliases = elasticsearch_client.indices.get_alias(name=self.alias)
         self.indexes_for_alias.update(
             [index for index, alias_info in aliases.iteritems() if self.alias in alias_info['aliases'].keys()]
         )
@@ -168,9 +164,7 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
         elasticsearch_client.indices.create(index=self.index, body={
             'settings': settings,
             'mappings': {
-                self.doc_type: {
-                    'properties': self.properties
-                }
+                'properties': self.properties
             }
         })
 
@@ -270,7 +264,7 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
         batch_written_successfully = False
         while True:
             try:
-                resp = elasticsearch_client.bulk(bulk_action_batch, index=self.index, doc_type=self.doc_type)
+                resp = elasticsearch_client.bulk(bulk_action_batch, index=self.index)
             except TransportError as transport_error:
                 if transport_error.status_code not in (REJECTED_REQUEST_STATUS, HTTP_SERVICE_UNAVAILABLE_STATUS_CODE):
                     raise transport_error
@@ -340,13 +334,6 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
         """
         raise NotImplementedError
 
-    @property
-    def doc_type(self):
-        """
-        Elasticsearch `document type <https://www.elastic.co/guide/en/elasticsearch/guide/current/mapping.html>`_.
-        """
-        raise NotImplementedError
-
     def extra_modules(self):
         import urllib3
 
@@ -367,7 +354,6 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
         return ElasticsearchTarget(
             client=self.create_elasticsearch_client(),
             index=self.alias,
-            doc_type=self.doc_type,
             update_id=self.update_id()
         )
 
@@ -384,10 +370,8 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
         elasticsearch_client.indices.refresh(index=self.index)
 
         # Perform an atomic swap of the alias.
-        actions = []
         old_indexes = [ix for ix in self.indexes_for_alias if elasticsearch_client.indices.exists(index=ix)]
-        for old_index in old_indexes:
-            actions.append({"remove": {"index": old_index, "alias": self.alias}})
+        actions = [{"remove": {"index": old_index, "alias": self.alias}} for old_index in old_indexes]
         actions.append({"add": {"index": self.index, "alias": self.alias}})
         elasticsearch_client.indices.update_aliases({"actions": actions})
 
@@ -404,8 +388,7 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
         """
         elasticsearch_client = self.create_elasticsearch_client()
         try:
-            if elasticsearch_client.indices.exists(index=self.index):
-                elasticsearch_client.indices.delete(index=self.index)
+            elasticsearch_client.indices.delete(index=self.index, ignore=[400, 404])
         except Exception:  # pylint: disable=broad-except
             log.exception("Unable to rollback the elasticsearch load.")
 

@@ -1,10 +1,12 @@
-try:
-    import elasticsearch
-    from elasticsearch.connection import Urllib3HttpConnection
-except ImportError:
-    elasticsearch = None
+import logging
+
+import elasticsearch
+from elasticsearch.connection import Urllib3HttpConnection
+from elasticsearch.exceptions import ElasticsearchException, TransportError
 
 from edx.analytics.tasks.util.aws_elasticsearch_connection import AwsHttpConnection
+
+logger = logging.getLogger(__name__)
 
 
 class ElasticsearchService(object):
@@ -34,11 +36,20 @@ class ElasticsearchService(object):
         if self._disabled:
             return
 
-        response = self._elasticsearch_client.indices.get_aliases(name=self._alias)
-        for index, alias_info in response.iteritems():
-            for alias in alias_info['aliases'].keys():
-                if alias == self._alias:
-                    self._elasticsearch_client.indices.delete(index=index)
+        try:
+            logger.info("ElasticsearchService: {}".format(str(self._alias)))
+            response = self._elasticsearch_client.indices.get_alias(name=self._alias, ignore_unavailable=True)
+        except TransportError as ex:
+            logger.error("Elasticsearch transport error while getting index by alias: %r", ex)
+            raise ex
+        except ElasticsearchException as ex:
+            logger.error("Elasticsearch error while getting index by alias: %r", ex)
+            raise ex
+        if response:
+            for index, alias_info in response.iteritems():
+                for alias in alias_info['aliases'].keys():
+                    if alias == self._alias:
+                        self._elasticsearch_client.indices.delete(index=index)
 
         # Get documents from the marker index which have their target_index set to current alias.
         # Note that there should be only 1 marker document per test run.
@@ -47,4 +58,4 @@ class ElasticsearchService(object):
             response = self._elasticsearch_client.search(index='index_updates', body=query)
 
             for doc in response['hits']['hits']:
-                self._elasticsearch_client.delete(index='index_updates', doc_type='marker', id=doc['_id'])
+                self._elasticsearch_client.delete(index='index_updates', id=doc['_id'])

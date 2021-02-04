@@ -4,15 +4,10 @@ import datetime
 import hashlib
 import logging
 
+import elasticsearch
 import luigi
 import luigi.configuration
 from luigi.contrib.hdfs.target import HdfsTarget
-
-try:
-    import elasticsearch
-except ImportError:
-    elasticsearch = None
-
 
 log = logging.getLogger(__name__)
 
@@ -26,11 +21,10 @@ class ElasticsearchTarget(HdfsTarget):
     Arguments:
             client (elasticsearch.Elasticsearch): An elasticsearch client.
             index (str): Name of the index that is populated.
-            doc_type (str): The doc_type that is written in the index.
             update_id (str): A unique identifier that is used to determine if an indexing task should be re-run.
     """
 
-    def __init__(self, client, index, doc_type, update_id):
+    def __init__(self, client, index, update_id):
         super(ElasticsearchTarget, self).__init__(is_tmp=True)
 
         self.marker_index = luigi.configuration.get_config().get(
@@ -38,20 +32,14 @@ class ElasticsearchTarget(HdfsTarget):
             'marker-index',
             'index_updates'
         )
-        self.marker_doc_type = luigi.configuration.get_config().get(
-            'elasticsearch',
-            'marker-doc-type',
-            'marker'
-        )
         self.index = index
-        self.doc_type = doc_type
         self.update_id = update_id
 
         self.elasticsearch_client = client
 
     def marker_index_document_id(self):
         """A concise string that represents a unique ID for this instance of this task."""
-        params = '%s:%s:%s' % (self.index, self.doc_type, self.update_id)
+        params = '{}:{}'.format(self.index, self.update_id)
         return hashlib.sha1(params.encode('utf-8')).hexdigest()
 
     def touch(self):
@@ -62,12 +50,10 @@ class ElasticsearchTarget(HdfsTarget):
 
         self.elasticsearch_client.index(
             index=self.marker_index,
-            doc_type=self.marker_doc_type,
             id=self.marker_index_document_id(),
             body={
                 'update_id': self.update_id,
                 'target_index': self.index,
-                'target_doc_type': self.doc_type,
                 'date': datetime.datetime.utcnow()
             }
         )
@@ -78,7 +64,6 @@ class ElasticsearchTarget(HdfsTarget):
         try:
             self.elasticsearch_client.get(
                 index=self.marker_index,
-                doc_type=self.marker_doc_type,
                 id=self.marker_index_document_id()
             )
             return True

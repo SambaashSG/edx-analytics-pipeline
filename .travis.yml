@@ -38,9 +38,11 @@ before_install:
   - mkdir -p coverage
 
 script:
+  - make test.start_elasticsearch
   - make test-docker
   - make quality-docker
   - make coverage-docker
+  - make test.stop_elasticsearch
 
 after_success:
   - pip install --upgrade codecov

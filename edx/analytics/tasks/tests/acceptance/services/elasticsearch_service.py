@@ -1,10 +1,16 @@
 import logging
 
-import elasticsearch
-from elasticsearch.connection import Urllib3HttpConnection
+# import elasticsearch
+# from elasticsearch.connection import Urllib3HttpConnection
 from elasticsearch.exceptions import ElasticsearchException, TransportError
 
 from edx.analytics.tasks.util.aws_elasticsearch_connection import AwsHttpConnection
+
+try:
+    import elasticsearch
+    from elasticsearch.connection import Urllib3HttpConnection
+except ImportError:
+    elasticsearch = None
 
 logger = logging.getLogger(__name__)
 

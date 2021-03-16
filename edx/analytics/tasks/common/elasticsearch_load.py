@@ -53,7 +53,7 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
 
     """
 
-    host = luigi.ListParameter(
+    host = luigi.Parameter(
         config_path={'section': 'elasticsearch', 'name': 'host'},
         description='Hostnames for the elasticsearch cluster nodes. They can be specified in any of the formats'
                     ' accepted by the elasticsearch-py library. This includes complete URLs such as http://foo.com/, or'

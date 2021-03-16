@@ -4,6 +4,9 @@ import logging
 import random
 import time
 from itertools import islice
+from requests_aws4auth import AWS4Auth
+import boto3
+
 
 # import elasticsearch
 # import elasticsearch.helpers
@@ -15,8 +18,8 @@ from edx.analytics.tasks.util.elasticsearch_target import ElasticsearchTarget
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
 
 try:
-    import elasticsearch
     import elasticsearch.helpers
+    from elasticsearch import Elasticsearch, RequestsHttpConnection
     from elasticsearch.exceptions import TransportError
 except ImportError:
     elasticsearch = None
@@ -181,16 +184,29 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
 
     def create_elasticsearch_client(self):
         """Build an elasticsearch client using the various parameters passed into this task."""
-        kwargs = {}
-        if self.connection_type == 'aws':
-            kwargs['connection_class'] = AwsHttpConnection
-        return elasticsearch.Elasticsearch(
-            hosts=self.host,
-            timeout=self.timeout,
-            retry_on_status=(HTTP_CONNECT_TIMEOUT_STATUS_CODE, HTTP_GATEWAY_TIMEOUT_STATUS_CODE),
-            retry_on_timeout=True,
-            **kwargs
+
+        service = 'es'
+        region = 'us-east-1'
+        credentials = boto3.Session().get_credentials()
+        awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
+
+        # kwargs = {}
+        # if self.connection_type == 'aws':
+        #     kwargs['connection_class'] = AwsHttpConnection
+        return Elasticsearch(
+            hosts = [{'host': self.host, 'port': 443}],
+            http_auth = awsauth,
+            use_ssl = True,
+            verify_certs = True,
+            connection_class = RequestsHttpConnection
         )
+        # return elasticsearch.Elasticsearch(
+        #     hosts=self.host,
+        #     timeout=self.timeout,
+        #     retry_on_status=(HTTP_CONNECT_TIMEOUT_STATUS_CODE, HTTP_GATEWAY_TIMEOUT_STATUS_CODE),
+        #     retry_on_timeout=True,
+        #     **kwargs
+        # )
 
     def mapper(self, line):
         yield (random.randrange(int(self.n_reduce_tasks)), line.rstrip('\r\n'))

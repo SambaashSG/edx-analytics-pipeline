@@ -18,6 +18,7 @@ from edx.analytics.tasks.util.elasticsearch_target import ElasticsearchTarget
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
 
 try:
+    import boto3
     import elasticsearch.helpers
     from elasticsearch import Elasticsearch, RequestsHttpConnection
     from elasticsearch.exceptions import TransportError

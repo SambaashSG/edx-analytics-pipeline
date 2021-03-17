@@ -4,7 +4,7 @@ import logging
 import random
 import time
 from itertools import islice
-from requests_aws4auth import AWS4Auth
+
 import boto3
 
 
@@ -21,6 +21,7 @@ try:
     import elasticsearch.helpers
     from elasticsearch import Elasticsearch, RequestsHttpConnection
     from elasticsearch.exceptions import TransportError
+    from requests_aws4auth import AWS4Auth
 except ImportError:
     elasticsearch = None
 

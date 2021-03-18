@@ -5,9 +5,6 @@ import random
 import time
 from itertools import islice
 
-import boto3
-
-
 # import elasticsearch
 # import elasticsearch.helpers
 import luigi

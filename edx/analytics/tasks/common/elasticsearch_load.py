@@ -363,7 +363,7 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
     def extra_modules(self):
         import urllib3
 
-        packages = [elasticsearch, urllib3]
+        packages = [elasticsearch, urllib3, boto3]
 
         return packages
 

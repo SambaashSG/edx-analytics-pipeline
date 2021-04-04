@@ -19,7 +19,7 @@ try:
     import elasticsearch.helpers
     from elasticsearch import Elasticsearch, RequestsHttpConnection
     from elasticsearch.exceptions import TransportError
-    from requests_aws4auth import AWS4Auth
+    import requests_aws4auth
 except ImportError:
     elasticsearch = None
 
@@ -187,7 +187,7 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
         service = 'es'
         region = 'us-east-1'
         credentials = boto3.Session().get_credentials()
-        awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
+        awsauth = requests_aws4auth.AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
 
         # kwargs = {}
         # if self.connection_type == 'aws':
@@ -363,7 +363,7 @@ class ElasticsearchIndexTask(OverwriteOutputMixin, MapReduceJobTask):
     def extra_modules(self):
         import urllib3
 
-        packages = [elasticsearch, urllib3, boto3]
+        packages = [elasticsearch, urllib3, boto3, requests_aws4auth]
 
         return packages
 

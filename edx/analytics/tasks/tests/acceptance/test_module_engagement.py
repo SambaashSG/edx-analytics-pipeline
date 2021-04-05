@@ -182,7 +182,7 @@ class ModuleEngagementAcceptanceTest(AcceptanceTestCase):
         """Validate the data stored in the elasticsearch index."""
 
         query = {"query": {"match_all": {}}}
-        response = self.elasticsearch.client.search(index=self.elasticsearch.alias, body=query)
+        response = self.elasticsearch.client.search(index=self.elasticsearch.alias, body=query, rest_total_hits_as_int=True)
 
         self.assertEquals(response['hits']['total'], 4)
 

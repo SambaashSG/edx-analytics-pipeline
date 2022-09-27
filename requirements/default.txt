@@ -66,7 +66,7 @@ pyasn1-modules==0.2.7     # via google-auth, snowflake-connector-python
 pyasn1==0.4.7             # via pyasn1-modules, rsa, snowflake-connector-python
 pycparser==2.19
 pycrypto==2.6.1
-pycryptodomex==3.9.0      # via snowflake-connector-python
+pycryptodomex      # via snowflake-connector-python
 pygeoip==0.3.2
 pyjwt==1.7.1              # via snowflake-connector-python
 pymongo==3.9.0            # via edx-opaque-keys
